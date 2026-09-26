@@ -1,0 +1,64 @@
+name: Build DAF XF Android APK
+
+on:
+  push:
+    branches:
+      - daf-xf-android-build-20260925
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout build branch
+        uses: actions/checkout@v4
+
+      - name: Reassemble Android project archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat daf-xf-build/chunks/chunk-*.txt | base64 --decode > compact.zip
+          echo "333d114548c7e82f5138d1c34cddc6fcbf8e1144655d162e8383201416aa54eb  compact.zip" | sha256sum -c -
+          unzip -q compact.zip
+          test -f DAF_XF_Android_App_Project_compact/app/src/main/assets/www/index.html
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform
+        shell: bash
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build installable debug APK
+        working-directory: DAF_XF_Android_App_Project_compact
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s DAF_XF_Android_App_Project_compact/app/build/outputs/apk/debug/app-debug.apk
+          ls -lh DAF_XF_Android_App_Project_compact/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DAF-XF-Manual-Android-v4.6
+          path: DAF_XF_Android_App_Project_compact/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
