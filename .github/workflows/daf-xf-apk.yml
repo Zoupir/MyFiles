@@ -1,9 +1,6 @@
 name: Build DAF XF Android APK
 
 on:
-  push:
-    branches:
-      - daf-xf-android-build-20260925
   workflow_dispatch:
 
 permissions:
